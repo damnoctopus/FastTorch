@@ -1,0 +1,44 @@
+name: Publish APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the selected revision
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Android SDK platform
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0"'
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Build debug APK
+        run: bash ./gradlew :app:assembleDebug
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          cp app/build/outputs/apk/debug/app-debug.apk FastTorch-debug.apk
+          notes="$RUNNER_TEMP/fasttorch-release-notes.md"
+          printf 'Installable debug APK built from commit `%s`.\n' "$GITHUB_SHA" > "$notes"
+          gh release create "$tag" FastTorch-debug.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "FastTorch build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
+            --notes-file "$notes" \
+            --latest

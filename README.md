@@ -33,6 +33,12 @@ Manual-only use ends when leaving the activity. Monitoring keeps a foreground se
 
 The connected task needs an emulator or device. See [validation results](docs/VALIDATION.md#implementation-validation-2026-11-12) for what was actually checked and what still needs a physical phone.
 
+## Publish an APK
+
+Once the workflow is on the repository's default branch, open **Actions → Publish APK → Run workflow** and choose the branch to build. Each successful run creates a GitHub release for the selected commit, attaches `FastTorch-debug.apk`, and marks it as the latest release. Earlier builds remain available under their own tags.
+
+The workflow uses Android's debug signing. Hosted runners may use different debug keys, so Android may require uninstalling an existing build before installing the new APK. Uninstalling clears the app's local settings.
+
 ## Planning documents
 
 - [Implementation plan](PLAN.md): ordered milestones, dependencies, and completion criteria.
