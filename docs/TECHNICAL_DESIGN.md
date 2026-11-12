@@ -1,6 +1,16 @@
 # Technical design
 
-Status: proposed architecture. Platform references checked on 2026-11-12; implementation must recheck requirements for the configured target SDK 37.
+Status: initial implementation plus remaining physical-validation decisions. Platform references checked on 2026-11-12 for configured target SDK 37.
+
+## Implemented decisions
+
+- The service is bound while the activity is visible and owns the single torch controller even for manual use. Enabling monitoring additionally starts it as a foreground service. This avoids a second activity controller and a handoff race.
+- Motion samples/filtering run on a dedicated worker. Accepted gestures are posted to the main thread with generation and age checks. Service state and torch callbacks are main-thread confined.
+- Launch-time discovery checks the accelerometer and rear flash independently. Missing hardware disables only affected controls; a gyroscope or proximity sensor is not required.
+- Prefer a wake-up accelerometer, falling back to the normal accelerometer with an explicit screen-off limitation. No wake-lock permission or permanent lock is used.
+- Use `specialUse` for ongoing user-enabled motion monitoring. The torch API does not open a camera. The [Android 17 CameraService torch implementation](https://android.googlesource.com/platform/frameworks/av/+/refs/heads/android17-release/services/camera/libcameraservice/CameraService.cpp) supports this torch-only path without a CAMERA permission check; the application therefore requests no camera permission and declares no camera service type. OEM validation and Google Play review are still pending.
+- Reviewed [target SDK 37 behavior changes](https://developer.android.com/about/versions/17/behavior-changes-17) and [changes for all Android 17 apps](https://developer.android.com/about/versions/17/behavior-changes-all). Existing build versions are unchanged.
+- Command/callback behavior is tested through a small `TorchHardware` adapter using a fake backend. That validates control logic, not physical flash behavior.
 
 ## Components and ownership
 
@@ -19,7 +29,7 @@ Keep a single app module and Java/XML. Proposed package root: `com.example.fastt
 
 The activity binds to the service while monitoring runs; a shared state snapshot distinguishes disabled, starting, monitoring, unavailable, and error. Torch state is separately unknown, off, on, or unavailable. UI observation attaches/detaches with the activity lifecycle.
 
-When monitoring is disabled, a visible manual-control session may own a controller. Starting the service transfers ownership and tears down the activity's controller first. There must be only one command authority and one sensor subscription. Practice mode routes recognition to UI feedback instead of torch commands and resets recognition on entry/exit.
+The bound service owns manual-only use, and stops its owned light when the visible session ends. There is one command authority and one sensor subscription. Practice mode routes recognition to UI feedback instead of torch commands and resets recognition on entry/exit.
 
 ## Gesture algorithm
 
@@ -37,10 +47,10 @@ Proposed state sequence: `IDLE -> FIRST_STROKE -> WAIT_SECOND -> COOLDOWN -> IDL
 | Parameter | Initial experiment | Finalization |
 | --- | --- | --- |
 | Sampling | About 50 Hz | Compare latency, power, and sample loss |
-| Gap between stroke onsets | 120-650 ms | Tune on real two-chop and single-stroke traces |
-| Maximum pair duration | 1,000 ms | Tune across users and grips |
+| Gap between stroke onsets | 180-750 ms | Tune on real two-chop and single-stroke traces |
+| Stroke envelope | 60-450 ms; 60 ms quiet to finish | Tune across users and grips |
 | Cooldown after accepted gesture | 1,000 ms plus rearm | Check repeat use and vibration rejection |
-| Acceleration / direction thresholds | Unset | Derive from device data; do not invent universal values |
+| Acceleration / direction thresholds | Low 17, Normal 13, High 10 m/s²; direction agreement >= 0.5 | Experimental defaults; calibrate on device data |
 | Sensitivity | Normal default | Adjust thresholds conservatively without removing timing guards |
 
 Use `SensorEvent.timestamp` and elapsed monotonic time, never wall-clock time or sample count, for durations. Ignore stale queued input so unlocking cannot replay an old gesture. Use a serial worker for samples and torch requests; publish UI changes on the main thread.
@@ -65,7 +75,7 @@ For Android 14+, choose the service type based on actual work. `specialUse` is a
 | `FOREGROUND_SERVICE` | Needed for the monitoring service. |
 | `FOREGROUND_SERVICE_SPECIAL_USE` + subtype property | Only if the validated service design uses `specialUse` on API 34+. |
 | `FOREGROUND_SERVICE_CAMERA` | Only if the validated design uses camera type on API 34+. |
-| `CAMERA` | Resolve for the chosen API/service path in Phase 0; request at runtime if needed. Camera type requires it. No preview or recording is planned. |
+| `CAMERA` | Not declared for the implemented torch-only path. No preview or recording. |
 | `POST_NOTIFICATIONS` | Request contextually on API 33+ to expose monitoring controls. |
 | `VIBRATE` | Only when adding optional haptic feedback. |
 | `WAKE_LOCK` | Not part of the default design; conditional on an explicit measured power decision. |

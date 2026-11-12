@@ -1,19 +1,117 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+    android:id="@+id/main" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true" android:clipToPadding="false">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/app_name" android:textColor="@color/ink" android:textSize="22sp" android:textStyle="bold" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="28dp" android:text="@string/eyebrow" android:textSize="11sp"
+            android:letterSpacing="0.16" android:textStyle="bold" android:textColor="@color/accent" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="@string/headline" android:textSize="42sp"
+            android:fontFamily="sans-serif-medium" android:textColor="@color/ink" android:lineSpacingExtra="-2dp" />
+        <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="@string/tagline" />
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="24dp"
+            app:cardBackgroundColor="@color/hero" app:cardCornerRadius="28dp" app:strokeWidth="0dp" app:cardElevation="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:gravity="center_horizontal" android:padding="24dp">
+                <ImageView android:id="@+id/torch_icon" android:layout_width="48dp" android:layout_height="48dp"
+                    android:src="@drawable/ic_torch" app:tint="@color/lamp" android:importantForAccessibility="no" />
+                <TextView android:id="@+id/torch_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp" android:text="@string/torch_unknown" android:gravity="center"
+                    android:textColor="@color/hero_text" android:textSize="20sp" android:textStyle="bold" android:accessibilityLiveRegion="polite" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/manual_button"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+                    android:layout_marginTop="16dp" android:text="@string/turn_on" android:textColor="@color/hero"
+                    android:textSize="16sp" app:backgroundTint="@color/lamp" app:cornerRadius="18dp" android:enabled="false" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:gravity="center" android:text="@string/manual_hint"
+                    android:textColor="@color/hero_muted" android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            app:cardCornerRadius="24dp" app:strokeWidth="0dp" app:cardElevation="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/gesture_title" />
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/monitor_switch"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+                    android:layout_marginTop="8dp" android:text="@string/enable_gesture" android:enabled="false" />
+                <TextView android:id="@+id/monitor_status" style="@style/BodyText"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/monitoring_disconnected"
+                    android:accessibilityLiveRegion="polite" />
+                <TextView android:id="@+id/error_message" style="@style/BodyText"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                    android:visibility="gone" android:accessibilityLiveRegion="polite" />
+                <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp" android:text="@string/sensitivity" android:textStyle="bold" android:textColor="@color/ink" />
+                <com.google.android.material.button.MaterialButtonToggleGroup android:id="@+id/sensitivity_group"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                    app:singleSelection="true" app:selectionRequired="true" app:checkedButton="@id/sensitivity_normal">
+                    <com.google.android.material.button.MaterialButton android:id="@+id/sensitivity_low"
+                        style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:minHeight="48dp" android:minWidth="0dp"
+                        android:paddingStart="4dp" android:paddingEnd="4dp" android:text="@string/low" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/sensitivity_normal"
+                        style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:minHeight="48dp" android:minWidth="0dp"
+                        android:paddingStart="4dp" android:paddingEnd="4dp" android:text="@string/normal" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/sensitivity_high"
+                        style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
+                        android:layout_height="wrap_content" android:minHeight="48dp" android:minWidth="0dp"
+                        android:paddingStart="4dp" android:paddingEnd="4dp" android:text="@string/high" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+                <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp" android:text="@string/sensitivity_hint" />
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/vibration_switch"
+                    android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+                    android:layout_marginTop="12dp" android:text="@string/vibration" />
+                <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/vibration_hint" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <TextView style="@style/SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="28dp" android:text="@string/how_title" />
+        <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="@string/how_body" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/practice_button"
+            style="?attr/materialButtonOutlinedStyle" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:minHeight="52dp" android:layout_marginTop="12dp" android:text="@string/practice" android:enabled="false" />
+        <TextView android:id="@+id/practice_status" style="@style/BodyText"
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone"
+            android:accessibilityLiveRegion="polite" />
+        <com.google.android.material.card.MaterialCardView android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="24dp"
+            app:cardCornerRadius="20dp" app:cardBackgroundColor="@color/soft_accent" app:strokeWidth="0dp" app:cardElevation="0dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="20dp">
+                <TextView style="@style/SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="@string/device_title" android:textSize="16sp" />
+                <TextView android:id="@+id/hardware_status" style="@style/BodyText" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/device_checking" />
+                <TextView android:id="@+id/power_status" style="@style/BodyText" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="8dp" />
+                <TextView android:id="@+id/sensor_details" style="@style/BodyText" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="20dp" android:text="@string/monitoring_note" />
+        <TextView android:id="@+id/notification_warning" style="@style/BodyText" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/notifications_hidden" android:visibility="gone" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/notification_settings"
+            style="?attr/borderlessButtonStyle" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:minHeight="48dp" android:text="@string/notification_settings" android:visibility="gone" />
+        <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="24dp" android:text="@string/privacy_note" android:textSize="12sp" android:gravity="center" />
+        <TextView style="@style/BodyText" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="@string/development_note" android:textSize="12sp" android:gravity="center" />
+    </LinearLayout>
+</ScrollView>

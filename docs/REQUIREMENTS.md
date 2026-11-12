@@ -1,6 +1,6 @@
 # Product requirements
 
-Status: proposed behavior for the first version; not implemented.
+Status: behavior targeted by the first development build. Core controls are implemented; physical-device acceptance is pending. The user confirmed that required sensors must be checked at launch and missing sensors explained in the UI.
 
 ## Core experience
 
