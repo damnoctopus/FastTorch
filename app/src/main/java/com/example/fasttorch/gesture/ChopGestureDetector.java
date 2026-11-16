@@ -6,6 +6,7 @@ package com.example.fasttorch.gesture;
  * No Android dependencies; callers confine an instance to one thread.
  */
 public final class ChopGestureDetector {
+    public enum Feedback { READY, FIRST_STROKE, TOO_WEAK, TOO_SLOW, TOO_FAST, DIRECTION, INCOMPLETE, DETECTED }
     private static final long QUIET_NS = 60_000_000L;
     private static final long MIN_STROKE_NS = 60_000_000L;
     private static final long MAX_STROKE_NS = 450_000_000L;
@@ -14,6 +15,10 @@ public final class ChopGestureDetector {
     private long cooldownUntil;
     private boolean active, braking, armed;
     private float dx, dy, dz, firstX, firstY, firstZ;
+    private Feedback feedback = Feedback.READY;
+    private float weakPeak;
+
+    public Feedback feedback() { return feedback; }
 
     public ChopGestureDetector(GestureConfig config) {
         this.config = config;
@@ -37,11 +42,13 @@ public final class ChopGestureDetector {
         if (time < cooldownUntil) return false;
         if (firstStart >= 0 && time - firstStart > config.maxPairNs + MAX_STROKE_NS) {
             firstStart = -1;
+            feedback = Feedback.TOO_SLOW;
         }
         if (active) {
             long duration = time - strokeStart;
             if (x * dx + y * dy + z * dz < -config.threshold * 0.5f) braking = true;
             if (duration > MAX_STROKE_NS) {
+                feedback = Feedback.INCOMPLETE;
                 active = false;
                 armed = false;
                 firstStart = -1;
@@ -51,6 +58,7 @@ public final class ChopGestureDetector {
                 active = false;
                 armed = true;
                 if (!braking || duration < MIN_STROKE_NS) {
+                    feedback = Feedback.INCOMPLETE;
                     firstStart = -1;
                     return false;
                 }
@@ -62,8 +70,13 @@ public final class ChopGestureDetector {
                     armed = false;
                     quietSince = -1;
                     cooldownUntil = time + config.cooldownNs;
+                    feedback = Feedback.DETECTED;
                     return true;
                 }
+                if (firstStart < 0) feedback = Feedback.FIRST_STROKE;
+                else if (gap < config.minPairNs) feedback = Feedback.TOO_FAST;
+                else if (gap > config.maxPairNs) feedback = Feedback.TOO_SLOW;
+                else feedback = Feedback.DIRECTION;
                 firstStart = strokeStart;
                 firstX = dx;
                 firstY = dy;
@@ -72,7 +85,15 @@ public final class ChopGestureDetector {
             return false;
         }
         if (quiet && time - quietSince >= QUIET_NS) armed = true;
+        if (armed && !active && firstStart < 0 && magnitude < config.threshold) {
+            weakPeak = Math.max(weakPeak, magnitude);
+            if (quiet && time - quietSince >= QUIET_NS && weakPeak >= config.threshold * 0.5f) {
+                feedback = Feedback.TOO_WEAK;
+                weakPeak = 0;
+            }
+        }
         if (armed && magnitude >= config.threshold) {
+            weakPeak = 0;
             active = true;
             armed = false;
             braking = false;
@@ -85,6 +106,8 @@ public final class ChopGestureDetector {
     }
 
     public void reset() {
+        feedback = Feedback.READY;
+        weakPeak = 0;
         previous = -1;
         quietSince = -1;
         firstStart = -1;

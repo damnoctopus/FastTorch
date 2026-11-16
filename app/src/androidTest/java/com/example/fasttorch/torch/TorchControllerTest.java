@@ -12,6 +12,9 @@ import org.junit.runner.RunWith;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
@@ -33,8 +36,9 @@ public class TorchControllerTest {
         final FakeHardware hardware = new FakeHardware();
         final TorchController controller = new TorchController(hardware, new Handler(Looper.getMainLooper()), this);
         int confirmations;
+        Runnable changed = () -> { };
         Fixture() { controller.initialize(); hardware.observed(false); }
-        @Override public void onChanged() { }
+        @Override public void onChanged() { changed.run(); }
         @Override public void onConfirmedGestureToggle() { confirmations++; }
     }
 
@@ -117,5 +121,71 @@ public class TorchControllerTest {
                 assertEquals(0, f.controller.error());
             } finally { f.controller.close(); }
         });
+    }
+
+    @Test public void reconnectRecoversAndIgnoresCallbacksFromOldConnection() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Fixture f = new Fixture();
+            try {
+                CameraManager.TorchCallback old = f.hardware.callback;
+                old.onTorchModeUnavailable("rear-flash");
+                f.controller.reconnect();
+                assertEquals(TorchController.State.UNKNOWN, f.controller.state());
+                old.onTorchModeChanged("rear-flash", true);
+                assertEquals(TorchController.State.UNKNOWN, f.controller.state());
+                f.hardware.observed(false);
+                assertTrue(f.controller.canToggle());
+                assertTrue(f.hardware.requests.isEmpty());
+            } finally { f.controller.close(); }
+        });
+    }
+
+    @Test public void reconnectPreservesOwnedLightAndWaitsForPendingCommands() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Fixture f = new Fixture();
+            try {
+                CameraManager.TorchCallback initial = f.hardware.callback;
+                f.controller.toggle(false);
+                f.controller.reconnect();
+                assertSame(initial, f.hardware.callback);
+                f.hardware.observed(true);
+                f.controller.reconnect();
+                f.hardware.observed(true);
+                assertEquals(Arrays.asList(true), f.hardware.requests);
+                f.controller.turnOffOwned();
+                assertEquals(Arrays.asList(true, false), f.hardware.requests);
+            } finally { f.controller.close(); }
+            CameraManager.TorchCallback last = f.hardware.callback;
+            f.controller.reconnect();
+            assertSame(last, f.hardware.callback);
+        });
+    }
+
+    @Test public void timedOutCommandCanReconnectWithoutRestartingService() throws Exception {
+        CountDownLatch timedOut = new CountDownLatch(1);
+        AtomicReference<Fixture> reference = new AtomicReference<>();
+        InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+            Fixture f = new Fixture();
+            reference.set(f);
+            f.changed = () -> {
+                if (f.controller.error() == R.string.torch_timeout) timedOut.countDown();
+            };
+            f.controller.toggle(false);
+        });
+        try {
+            assertTrue("Expected callback timeout", timedOut.await(5, TimeUnit.SECONDS));
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+                Fixture f = reference.get();
+                assertFalse(f.controller.canToggle());
+                f.controller.reconnect();
+                f.hardware.observed(true);
+                assertTrue(f.controller.canToggle());
+                assertEquals(0, f.controller.error());
+                f.controller.turnOffOwned();
+                assertEquals(Arrays.asList(true, false), f.hardware.requests);
+            });
+        } finally {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> reference.get().controller.close());
+        }
     }
 }

@@ -56,7 +56,15 @@
     <string name="torch_busy">The flashlight is temporarily unavailable. Close any app using the camera and try again.</string>
     <string name="torch_failed">The flashlight command failed. Close camera apps and try again.</string>
     <string name="torch_restricted">This phone is restricting flashlight access. Check device privacy settings, then reopen FastTorch.</string>
-    <string name="torch_timeout">The flashlight did not confirm its state. Stop monitoring and reopen FastTorch to reconnect.</string>
+    <string name="torch_timeout">The flashlight did not confirm its state. Tap Retry connection to check it again.</string>
+    <string name="retry_torch">Retry connection</string>
+    <string name="practice_first">First chop detected. Follow with a second chop.</string>
+    <string name="practice_weak">Movement was below the sensitivity threshold. Try a firmer chop or High sensitivity.</string>
+    <string name="practice_slow">The second chop took too long. Try two strokes closer together.</string>
+    <string name="practice_fast">The strokes were too close together. Leave a brief pause.</string>
+    <string name="practice_direction">The strokes moved in different directions. Repeat the same chopping motion twice.</string>
+    <string name="practice_incomplete">A complete chop was not detected. Make a short stroke, then bring the phone to a stop.</string>
+    <string name="practice_detected">Two chops detected. Pause briefly before trying again.</string>
     <string name="device_flash_unknown">Motion sensor check complete. Flashlight access could not be verified; see the error above.</string>
     <string name="torch_off_failed">Could not turn off the flashlight. Use your phone’s flashlight control to switch it off.</string>
     <string name="development_note">Early build · Gesture sensitivity is not yet calibrated on physical phones.</string>

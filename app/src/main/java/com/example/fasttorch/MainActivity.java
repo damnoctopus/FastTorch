@@ -75,6 +75,9 @@ public class MainActivity extends AppCompatActivity {
             render();
         });
         manualButton.setOnClickListener(v -> { if (service != null) service.toggleManually(); });
+        findViewById(R.id.retry_torch).setOnClickListener(v -> {
+            if (service != null) service.reconnectTorch();
+        });
         practiceButton.setOnClickListener(v -> {
             if (service != null) service.setPractice(!service.isPracticing());
         });
@@ -178,8 +181,13 @@ public class MainActivity extends AppCompatActivity {
         practiceButton.setText(practice ? R.string.practice_stop : R.string.practice);
         TextView practiceStatus = findViewById(R.id.practice_status);
         practiceStatus.setVisibility(practice ? View.VISIBLE : View.GONE);
-        if (practice) practiceStatus.setText(service.practiceCount() == 0 ? getString(R.string.practice_ready)
-                : getString(R.string.practice_success, service.practiceCount()));
+        if (practice) practiceStatus.setText(service.practiceHint());
+        TextView practiceCount = findViewById(R.id.practice_count);
+        practiceCount.setVisibility(practice && service.practiceCount() > 0 ? View.VISIBLE : View.GONE);
+        if (practice) practiceCount.setText(getString(R.string.practice_success, service.practiceCount()));
+        findViewById(R.id.retry_torch).setVisibility(connected && service.torch().error() != 0
+                && state != TorchController.State.NO_FLASH ? View.VISIBLE : View.GONE);
+        findViewById(R.id.retry_torch).setEnabled(connected && !service.torch().pending());
         int error = activityError != 0 ? activityError : connected && service.message() != 0
                 ? service.message() : connected ? service.torch().error() : 0;
         TextView errorView = findViewById(R.id.error_message);

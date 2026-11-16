@@ -94,4 +94,42 @@ public class ChopGestureDetectorTest {
         Trace t = new Trace(); t.stroke(24, 0, 0); t.detector.reset(); t.quiet(100); t.stroke(24, 0, 0);
         assertEquals(0, t.events);
     }
+
+    @Test public void practiceExplainsWeakMovementWithoutAcceptingIt() {
+        Trace t = new Trace();
+        t.stroke(8, 0, 0);
+        assertEquals(ChopGestureDetector.Feedback.TOO_WEAK, t.detector.feedback());
+        assertEquals(0, t.events);
+    }
+
+    @Test public void practiceTracksFirstStrokeAndSuccessfulPair() {
+        Trace t = new Trace();
+        t.stroke(24, 0, 0);
+        assertEquals(ChopGestureDetector.Feedback.FIRST_STROKE, t.detector.feedback());
+        t.quiet(80);
+        t.stroke(24, 0, 0);
+        assertEquals(ChopGestureDetector.Feedback.DETECTED, t.detector.feedback());
+        assertEquals(1, t.events);
+    }
+
+    @Test public void practiceExplainsExpiredAndMisdirectedPairs() {
+        Trace late = new Trace();
+        late.stroke(24, 0, 0);
+        late.quiet(1300);
+        assertEquals(ChopGestureDetector.Feedback.TOO_SLOW, late.detector.feedback());
+        Trace direction = new Trace();
+        direction.stroke(24, 0, 0);
+        direction.stroke(0, 24, 0);
+        assertEquals(ChopGestureDetector.Feedback.DIRECTION, direction.detector.feedback());
+        assertEquals(0, direction.events);
+    }
+
+    @Test public void incompleteStrokeHasFeedbackAndResetClearsIt() {
+        Trace t = new Trace();
+        t.hold(60, 24, 0, 0);
+        t.quiet(100);
+        assertEquals(ChopGestureDetector.Feedback.INCOMPLETE, t.detector.feedback());
+        t.detector.reset();
+        assertEquals(ChopGestureDetector.Feedback.READY, t.detector.feedback());
+    }
 }

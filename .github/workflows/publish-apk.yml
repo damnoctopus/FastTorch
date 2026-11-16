@@ -3,6 +3,10 @@ name: Publish APK
 on:
   workflow_dispatch:
 
+concurrency:
+  group: publish-apk
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-24.04
@@ -16,7 +20,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Android SDK platform
-        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0"'
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;37.0.0"'
 
       - name: Set up Java
         uses: actions/setup-java@v6
@@ -25,20 +29,53 @@ jobs:
           java-version: '25'
           cache: gradle
 
-      - name: Build debug APK
-        run: bash ./gradlew :app:assembleDebug
+      - name: Restore release signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FASTTORCH_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.FASTTORCH_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FASTTORCH_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FASTTORCH_KEY_PASSWORD }}
+        run: |
+          if [[ -z "$KEYSTORE_BASE64" || -z "$STORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
+            echo '::error::Configure the four FASTTORCH signing secrets. See scripts/setup-signing.ps1 -UploadToGitHub.'
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/fasttorch-release.p12"
+
+      - name: Test and build signed release
+        env:
+          FASTTORCH_KEYSTORE_PATH: ${{ runner.temp }}/fasttorch-release.p12
+          FASTTORCH_STORE_PASSWORD: ${{ secrets.FASTTORCH_STORE_PASSWORD }}
+          FASTTORCH_KEY_ALIAS: ${{ secrets.FASTTORCH_KEY_ALIAS }}
+          FASTTORCH_KEY_PASSWORD: ${{ secrets.FASTTORCH_KEY_PASSWORD }}
+        run: |
+          if (( GITHUB_RUN_ATTEMPT >= 1000 )); then
+            echo '::error::Start a new workflow run to allocate a new version range.'
+            exit 1
+          fi
+          version_code=$((GITHUB_RUN_NUMBER * 1000 + GITHUB_RUN_ATTEMPT))
+          bash ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease \
+            --no-configuration-cache "-PversionCode=$version_code" \
+            "-PversionName=1.1.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify app/build/outputs/apk/release/app-release.apk
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="build-${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
-          cp app/build/outputs/apk/debug/app-debug.apk FastTorch-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk FastTorch.apk
+          sha256sum FastTorch.apk > FastTorch.apk.sha256
           notes="$RUNNER_TEMP/fasttorch-release-notes.md"
-          printf 'Installable debug APK built from commit `%s`.\n' "$GITHUB_SHA" > "$notes"
-          gh release create "$tag" FastTorch-debug.apk \
+          printf 'Signed FastTorch release built from commit `%s`.\n\nIncludes gesture practice feedback and flashlight connection recovery.\n' "$GITHUB_SHA" > "$notes"
+          gh release create "$tag" FastTorch.apk FastTorch.apk.sha256 \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "FastTorch build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" \
             --notes-file "$notes" \
             --latest
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/fasttorch-release.p12"

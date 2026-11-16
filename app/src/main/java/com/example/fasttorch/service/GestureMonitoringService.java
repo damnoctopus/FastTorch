@@ -15,6 +15,7 @@ import android.os.Vibrator;
 import androidx.core.app.ServiceCompat;
 import com.example.fasttorch.R;
 import com.example.fasttorch.gesture.GestureConfig;
+import com.example.fasttorch.gesture.ChopGestureDetector;
 import com.example.fasttorch.gesture.SensorSource;
 import com.example.fasttorch.notification.MonitoringNotification;
 import com.example.fasttorch.settings.SettingsRepository;
@@ -34,6 +35,7 @@ public final class GestureMonitoringService extends Service implements TorchCont
     private SettingsRepository settings;
     private boolean monitoring, practice, destroyed;
     private int message, practiceCount;
+    private int practiceHint = R.string.practice_ready;
     private long suppressUntil;
 
     public final class LocalBinder extends Binder {
@@ -103,7 +105,23 @@ public final class GestureMonitoringService extends Service implements TorchCont
 
     private boolean restartSensors() {
         sensors.stop();
-        return (!monitoring && !practice) || sensors.start(settings.sensitivity(), this::onGesture);
+        return (!monitoring && !practice) || sensors.start(settings.sensitivity(), this::onGesture,
+                practice ? this::onPracticeFeedback : null);
+    }
+
+    private void onPracticeFeedback(ChopGestureDetector.Feedback feedback) {
+        if (!practice || destroyed) return;
+        switch (feedback) {
+            case FIRST_STROKE: practiceHint = R.string.practice_first; break;
+            case TOO_WEAK: practiceHint = R.string.practice_weak; break;
+            case TOO_SLOW: practiceHint = R.string.practice_slow; break;
+            case TOO_FAST: practiceHint = R.string.practice_fast; break;
+            case DIRECTION: practiceHint = R.string.practice_direction; break;
+            case INCOMPLETE: practiceHint = R.string.practice_incomplete; break;
+            case DETECTED: practiceHint = R.string.practice_detected; break;
+            default: practiceHint = R.string.practice_ready;
+        }
+        onChanged();
     }
 
     private void onGesture() {
@@ -119,6 +137,7 @@ public final class GestureMonitoringService extends Service implements TorchCont
     public void setPractice(boolean enabled) {
         practice = enabled && sensors.isAvailable();
         practiceCount = 0;
+        practiceHint = R.string.practice_ready;
         message = 0;
         if (!restartSensors()) {
             message = R.string.sensor_failed;
@@ -128,6 +147,7 @@ public final class GestureMonitoringService extends Service implements TorchCont
     }
 
     public void setSensitivity(GestureConfig config) {
+        practiceHint = R.string.practice_ready;
         settings.setSensitivity(config);
         if (!restartSensors()) {
             message = R.string.sensor_failed;
@@ -137,6 +157,7 @@ public final class GestureMonitoringService extends Service implements TorchCont
     }
 
     public void toggleManually() { torch.toggle(false); }
+    public void reconnectTorch() { torch.reconnect(); }
 
     public void endVisibleSession() {
         if (practice) setPractice(false);
@@ -153,6 +174,7 @@ public final class GestureMonitoringService extends Service implements TorchCont
     public boolean isMonitoring() { return monitoring; }
     public boolean isPracticing() { return practice; }
     public int practiceCount() { return practiceCount; }
+    public int practiceHint() { return practiceHint; }
     public int message() { return message; }
     public SensorSource sensors() { return sensors; }
     public TorchController torch() { return torch; }

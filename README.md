@@ -15,7 +15,7 @@ Open the project in Android Studio and run the `app` configuration on a phone wi
 Output: `app/build/outputs/apk/debug/app-debug.apk`.
 
 1. Open FastTorch. It checks for an accelerometer and a rear flashlight automatically. Missing required hardware is explained and the affected controls are disabled.
-2. Try the manual flashlight button, then use **Try the gesture** to practice without changing the light.
+2. Try the manual flashlight button, then use **Try the gesture**. Practice gives feedback about stroke strength, timing, direction, and completion, plus a successful-gesture count. These hints reflect the current detector thresholds.
 3. Enable **chop-chop**. Allow notifications if you want the Stop control in the notification drawer. Notification denial does not block monitoring.
 4. Hold the phone firmly and make two short chopping strokes. Start with Normal sensitivity; try High for gentler strokes or Low if normal handling triggers it.
 5. Stop from the switch or notification. Rebooting, force-stopping, or system process termination requires enabling detection again.
@@ -24,6 +24,8 @@ The accelerometer is the only required motion sensor. A wake-up accelerometer is
 
 Manual-only use ends when leaving the activity. Monitoring keeps a foreground service alive after leaving the app. Practice is limited to the visible activity and temporarily suppresses flashlight gestures.
 
+If flashlight access fails or times out, use **Retry connection** to refresh availability. Monitoring can stay enabled while the connection is checked.
+
 ## Verification
 
 ```powershell
@@ -31,13 +33,19 @@ Manual-only use ends when leaving the activity. Monitoring keeps a foreground se
 .\gradlew.bat :app:connectedDebugAndroidTest
 ```
 
-The connected task needs an emulator or device. See [validation results](docs/VALIDATION.md#implementation-validation-2026-11-12) for what was actually checked and what still needs a physical phone.
+The connected task needs an emulator or device. See [validation results](docs/VALIDATION.md#improvements-validation-2026-11-16) for what was actually checked and what still needs a physical phone.
 
 ## Publish an APK
 
-Once the workflow is on the repository's default branch, open **Actions → Publish APK → Run workflow** and choose the branch to build. Each successful run creates a GitHub release for the selected commit, attaches `FastTorch-debug.apk`, and marks it as the latest release. Earlier builds remain available under their own tags.
+Run `./scripts/setup-signing.ps1` once to create a persistent release key in the Git-ignored `.signing` directory. Subsequent runs reuse the key. Back up this directory securely, including `release.properties`, to preserve the ability to update installed releases.
 
-The workflow uses Android's debug signing. Hosted runners may use different debug keys, so Android may require uninstalling an existing build before installing the new APK. Uninstalling clears the app's local settings.
+Build locally with `./gradlew.bat :app:assembleRelease --no-configuration-cache`. The signed APK is written to `app/build/outputs/apk/release/app-release.apk`. Local builds default to version 1.1.0 / code 2. Pass increasing `-PversionCode` and `-PversionName` values when distributing later local builds, using a code above the last installed release.
+
+For GitHub publishing, install and authenticate the GitHub CLI with `gh auth login`, then run `./scripts/setup-signing.ps1 -UploadToGitHub`. This uploads the existing key and passwords as the four repository secrets `FASTTORCH_KEYSTORE_BASE64`, `FASTTORCH_STORE_PASSWORD`, `FASTTORCH_KEY_ALIAS`, and `FASTTORCH_KEY_PASSWORD`. The script sends secret values through standard input. Keep the same key for all releases.
+
+Once the workflow is on the default branch and secrets are configured, open **Actions → Publish APK → Run workflow**. Each successful run executes unit tests and release lint, builds and verifies a signed APK, and publishes `FastTorch.apk` with a SHA-256 checksum. It creates a new release and marks it as latest. Version codes use `run number * 1000 + attempt`, so new runs and retries get increasing codes. Rerun the newest run when distributing updates.
+
+Switching from the earlier debug APK to the release signing key requires uninstalling the debug app once, which clears its settings. Subsequent releases signed with this key can update it in place. GitHub Actions still requires the account billing lock to be cleared if it remains active.
 
 ## Planning documents
 

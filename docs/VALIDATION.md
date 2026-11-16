@@ -1,6 +1,43 @@
 # Validation plan
 
-Status: future tests and proposed acceptance targets. No tests or hardware experiments have been run during planning.
+Status: development checks below have passed; physical-phone targets remain unverified.
+
+## Improvements validation (2026-11-16)
+
+Version 1.1.0 / code 2. Tested on the same Android 17 `Medium_Phone` emulator; no physical phone was connected.
+
+| Check | Result |
+| --- | --- |
+| Local unit tests | 22 passed, including practice feedback for weak, incomplete, mistimed, and inconsistent strokes |
+| Android instrumentation | 13 passed; includes reconnect after timeout, rejection of stale callbacks, retained light ownership, practice, and settings persistence |
+| Debug and release lint | 0 errors; 1 existing AGP update advisory in each variant |
+| Debug and signed release builds | Passed; release signature verified with `apksigner` |
+| Signed APK smoke check | Installed and launched on the emulator; missing-flash state and touch scrolling checked |
+| Signing setup | Persistent local key generated, Git-ignored, and unchanged on repeated setup |
+| Publishing shell steps | Syntax and isolated mock checks passed for secret restoration, missing-secret failure, release arguments, and APK checksum |
+| Live GitHub publishing | Not run; repository signing secrets still need uploading and the reported billing lock must be resolved |
+
+The UI tests now use touch swipes and wait for scrolling to settle before tapping. Espresso's `scrollTo` action failed to reveal lower controls on this API 37 emulator; touch scrolling works. Initial boot/locked-screen attempts were not counted as passes.
+
+Release signing files are local under the ignored `.signing/` directory. Back up both the key and its properties securely. The emulator cannot verify real flashlight behavior, motion accuracy, screen-off reliability, or battery overhead.
+
+## Implementation validation (2026-11-12)
+
+Environment: Windows, JDK 21, existing Gradle 9.6.0 / AGP 9.4.1 / SDK 37 configuration. Android emulator: `Medium_Phone`, Android 17. No physical phone was connected.
+
+| Check | Result |
+| --- | --- |
+| Baseline and implemented debug build | Passed |
+| Local unit tests | 18 passed: stroke envelopes, timing/cooldown, axes/rates, noise, invalid samples, gravity removal, raw-sample pipeline |
+| Android instrumentation | 10 passed: absent hardware, practice, settings across recreation, service launch/failure/stop, torch command/callback races |
+| Android lint | 0 errors; 1 existing dependency-update advisory for AGP |
+| Visual inspection | Light and dark screens, scrolling, and 1.5x font size checked on emulator |
+| Real flashlight / gesture trials | Not run; emulator has no rear flash |
+| Locked-screen and overnight battery trials | Not run |
+
+The service instrumentation test exercised foreground promotion followed by graceful missing-flash shutdown on this emulator. It did not prove sustained monitoring with a real flashlight. Torch command tests use a fake hardware adapter to check failure handling, external changes, pending-command serialization, and Stop arriving before an ON acknowledgement.
+
+Screenshots and generated reports are under ignored `build/verification/` and `app/build/` directories. Synthetic tests are not evidence of 95% real-world accuracy. Next: install the debug APK on the user's phone, run manual control and practice, then complete the physical acceptance trials below.
 
 ## Detector tests
 

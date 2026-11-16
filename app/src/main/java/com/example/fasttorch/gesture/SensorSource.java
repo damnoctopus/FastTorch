@@ -8,6 +8,7 @@ import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
+import java.util.function.Consumer;
 
 /** Owns one subscription. Each start has isolated worker state and a cancellation token. */
 public final class SensorSource {
@@ -32,6 +33,11 @@ public final class SensorSource {
     public String sensorName() { return sensor == null ? "" : sensor.getName(); }
 
     public boolean start(GestureConfig config, Runnable onGesture) {
+        return start(config, onGesture, null);
+    }
+
+    public boolean start(GestureConfig config, Runnable onGesture,
+                         Consumer<ChopGestureDetector.Feedback> onFeedback) {
         stop();
         if (sensor == null) return false;
         final int token = generation;
@@ -40,6 +46,8 @@ public final class SensorSource {
         thread = new HandlerThread("FastTorch-motion");
         thread.start();
         listener = new SensorEventListener() {
+            private ChopGestureDetector.Feedback lastFeedback = ChopGestureDetector.Feedback.READY;
+            private long lastFeedbackTime;
             @Override public void onSensorChanged(SensorEvent event) {
                 long age = SystemClock.elapsedRealtimeNanos() - event.timestamp;
                 if (age < 0 || age > 250_000_000L) {
@@ -57,6 +65,18 @@ public final class SensorSource {
                         if (token == generation
                                 && SystemClock.elapsedRealtimeNanos() - detected < 500_000_000L) {
                             onGesture.run();
+                        }
+                    });
+                }
+                ChopGestureDetector.Feedback feedback = detector.feedback();
+                if (onFeedback != null && feedback != lastFeedback
+                        && event.timestamp - lastFeedbackTime >= 250_000_000L) {
+                    lastFeedback = feedback;
+                    lastFeedbackTime = event.timestamp;
+                    long observed = event.timestamp;
+                    main.post(() -> {
+                        if (token == generation && SystemClock.elapsedRealtimeNanos() - observed < 500_000_000L) {
+                            onFeedback.accept(feedback);
                         }
                     });
                 }
